@@ -136,14 +136,18 @@ export default function Home() {
 
   const canEdit = editKey.trim().length > 0;
 
-  function getEditHeaders() {
-    if (!canEdit) {
-      return {};
+  function buildRequestHeaders(withJsonContentType: boolean) {
+    const headers = new Headers();
+
+    if (withJsonContentType) {
+      headers.set("Content-Type", "application/json");
     }
 
-    return {
-      "x-edit-key": editKey,
-    };
+    if (canEdit) {
+      headers.set("x-edit-key", editKey);
+    }
+
+    return headers;
   }
 
   async function loadSessions() {
@@ -244,7 +248,7 @@ export default function Home() {
     try {
       const response = await fetch("/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getEditHeaders() },
+        headers: buildRequestHeaders(true),
         body: JSON.stringify({
           pair: sessionPair,
           month: sessionMonth,
@@ -281,7 +285,7 @@ export default function Home() {
     try {
       const response = await fetch("/api/sessions", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getEditHeaders() },
+        headers: buildRequestHeaders(true),
         body: JSON.stringify({
           id: selectedSessionId,
           pair: sessionEditPair,
@@ -324,7 +328,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/sessions?id=${selectedSessionId}`, {
         method: "DELETE",
-        headers: getEditHeaders(),
+        headers: buildRequestHeaders(false),
       });
       const result = await response.json();
 
@@ -359,7 +363,7 @@ export default function Home() {
       const method = editingTradeId ? "PATCH" : "POST";
       const response = await fetch("/api/trades", {
         method,
-        headers: { "Content-Type": "application/json", ...getEditHeaders() },
+        headers: buildRequestHeaders(true),
         body: JSON.stringify({
           id: editingTradeId ?? undefined,
           sessionId: selectedSessionId,
@@ -412,7 +416,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/trades?id=${tradeId}`, {
         method: "DELETE",
-        headers: getEditHeaders(),
+        headers: buildRequestHeaders(false),
       });
       const result = await response.json();
 
