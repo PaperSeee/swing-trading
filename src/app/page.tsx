@@ -891,24 +891,24 @@ export default function Home() {
                     </select>
                   </label>
 
-                  <div className="md:col-span-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleUpdateSession()}
-                      disabled={!canEdit}
-                      className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background sm:w-auto"
-                    >
-                      Update Session
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteSession()}
-                      disabled={!canEdit}
-                      className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-auto"
-                    >
-                      Delete Session
-                    </button>
-                  </div>
+                  {canEdit && (
+                    <div className="md:col-span-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleUpdateSession()}
+                        className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background sm:w-auto"
+                      >
+                        Update Session
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteSession()}
+                        className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-auto"
+                      >
+                        Delete Session
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
