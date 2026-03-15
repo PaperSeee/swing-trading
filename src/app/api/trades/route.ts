@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { ensureEditAccess } from "@/lib/edit-access";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 export async function GET(request: Request) {
@@ -31,6 +32,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = ensureEditAccess(request);
+  if (denied) {
+    return denied;
+  }
+
   try {
     const payload = (await request.json()) as {
       sessionId?: string;
@@ -90,6 +96,11 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const denied = ensureEditAccess(request);
+  if (denied) {
+    return denied;
+  }
+
   try {
     const payload = (await request.json()) as {
       id?: string;
@@ -149,6 +160,11 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const denied = ensureEditAccess(request);
+  if (denied) {
+    return denied;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id")?.trim();

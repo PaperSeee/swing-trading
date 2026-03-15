@@ -105,9 +105,15 @@ export default function Home() {
   const [tradeNotes, setTradeNotes] = useState("");
   const [tradeChartUrl, setTradeChartUrl] = useState("");
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+  const [editKeyInput, setEditKeyInput] = useState("");
+  const [editKey, setEditKey] = useState("");
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
 
   useEffect(() => {
+    const savedEditKey = window.localStorage.getItem("edit-access-key") ?? "";
+    setEditKey(savedEditKey);
+    setEditKeyInput(savedEditKey);
+
     const savedTheme = window.localStorage.getItem("theme-mode");
     if (savedTheme === "light" || savedTheme === "dark") {
       setThemeMode(savedTheme);
@@ -127,6 +133,18 @@ export default function Home() {
     () => sessions.find((session) => session.id === selectedSessionId),
     [sessions, selectedSessionId],
   );
+
+  const canEdit = editKey.trim().length > 0;
+
+  function getEditHeaders() {
+    if (!canEdit) {
+      return {};
+    }
+
+    return {
+      "x-edit-key": editKey,
+    };
+  }
 
   async function loadSessions() {
     setError("");
@@ -218,10 +236,15 @@ export default function Home() {
     event.preventDefault();
     setError("");
 
+    if (!canEdit) {
+      setError("Read-only mode is enabled.");
+      return;
+    }
+
     try {
       const response = await fetch("/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getEditHeaders() },
         body: JSON.stringify({
           pair: sessionPair,
           month: sessionMonth,
@@ -243,6 +266,11 @@ export default function Home() {
   }
 
   async function handleUpdateSession() {
+    if (!canEdit) {
+      setError("Read-only mode is enabled.");
+      return;
+    }
+
     if (!selectedSessionId) {
       setError("Select a session first.");
       return;
@@ -253,7 +281,7 @@ export default function Home() {
     try {
       const response = await fetch("/api/sessions", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getEditHeaders() },
         body: JSON.stringify({
           id: selectedSessionId,
           pair: sessionEditPair,
@@ -276,6 +304,11 @@ export default function Home() {
   }
 
   async function handleDeleteSession() {
+    if (!canEdit) {
+      setError("Read-only mode is enabled.");
+      return;
+    }
+
     if (!selectedSessionId) {
       setError("Select a session first.");
       return;
@@ -291,6 +324,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/sessions?id=${selectedSessionId}`, {
         method: "DELETE",
+        headers: getEditHeaders(),
       });
       const result = await response.json();
 
@@ -311,6 +345,11 @@ export default function Home() {
     event.preventDefault();
     setError("");
 
+    if (!canEdit) {
+      setError("Read-only mode is enabled.");
+      return;
+    }
+
     if (!selectedSessionId) {
       setError("Select a session first.");
       return;
@@ -320,7 +359,7 @@ export default function Home() {
       const method = editingTradeId ? "PATCH" : "POST";
       const response = await fetch("/api/trades", {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getEditHeaders() },
         body: JSON.stringify({
           id: editingTradeId ?? undefined,
           sessionId: selectedSessionId,
@@ -358,6 +397,11 @@ export default function Home() {
   }
 
   async function handleDeleteTrade(tradeId: string) {
+    if (!canEdit) {
+      setError("Read-only mode is enabled.");
+      return;
+    }
+
     const confirmDelete = window.confirm("Delete this trade?");
     if (!confirmDelete) {
       return;
@@ -366,7 +410,10 @@ export default function Home() {
     setError("");
 
     try {
-      const response = await fetch(`/api/trades?id=${tradeId}`, { method: "DELETE" });
+      const response = await fetch(`/api/trades?id=${tradeId}`, {
+        method: "DELETE",
+        headers: getEditHeaders(),
+      });
       const result = await response.json();
 
       if (!response.ok) {
@@ -561,6 +608,40 @@ export default function Home() {
               <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
             </button>
           </div>
+
+          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-foreground/20 bg-background/60 p-3 sm:flex-row sm:items-center">
+            <p className="text-xs uppercase tracking-wide text-foreground/70">Editor Access</p>
+            <input
+              type="password"
+              value={editKeyInput}
+              onChange={(event) => setEditKeyInput(event.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-foreground/25 bg-background px-3 py-2 text-sm"
+              placeholder="Enter edit key"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const nextKey = editKeyInput.trim();
+                setEditKey(nextKey);
+                window.localStorage.setItem("edit-access-key", nextKey);
+              }}
+              className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
+            >
+              Unlock
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditKey("");
+                setEditKeyInput("");
+                window.localStorage.removeItem("edit-access-key");
+              }}
+              className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
+            >
+              Lock
+            </button>
+            <span className="text-xs text-foreground/70">{canEdit ? "Edit mode enabled" : "Read-only mode"}</span>
+          </div>
         </header>
 
         <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
@@ -618,10 +699,16 @@ export default function Home() {
                 </select>
               </label>
 
-              <button type="submit" className="mt-1 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background">
+              <button
+                type="submit"
+                disabled={!canEdit}
+                className="mt-1 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 Create Session
               </button>
             </form>
+
+            {!canEdit && <p className="mt-2 text-xs text-foreground/70">Read-only: unlock editor access to create sessions.</p>}
 
             <div className="mt-6 border-t border-foreground/15 pt-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Sessions</h3>
@@ -717,6 +804,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => void handleUpdateSession()}
+                      disabled={!canEdit}
                       className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background sm:w-auto"
                     >
                       Update Session
@@ -724,6 +812,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => void handleDeleteSession()}
+                      disabled={!canEdit}
                       className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-auto"
                     >
                       Delete Session
@@ -813,7 +902,11 @@ export default function Home() {
                 </label>
 
                 <div className="flex flex-wrap gap-2">
-                  <button type="submit" className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background sm:w-fit">
+                  <button
+                    type="submit"
+                    disabled={!canEdit}
+                    className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+                  >
                     {editingTradeId ? "Update Trade" : "Add Trade"}
                   </button>
                   {editingTradeId && (
@@ -827,6 +920,7 @@ export default function Home() {
                   )}
                 </div>
               </form>
+              {!canEdit && <p className="mt-2 text-xs text-foreground/70">Read-only: unlock editor access to add or edit trades.</p>}
             </div>
 
             <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
@@ -940,14 +1034,16 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => startEditingTrade(trade)}
-                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                        disabled={!canEdit}
+                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDeleteTrade(trade.id)}
-                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                        disabled={!canEdit}
+                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Delete
                       </button>
@@ -996,14 +1092,16 @@ export default function Home() {
                             <button
                               type="button"
                               onClick={() => startEditingTrade(trade)}
-                              className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                              disabled={!canEdit}
+                              className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Edit
                             </button>
                             <button
                               type="button"
                               onClick={() => void handleDeleteTrade(trade.id)}
-                              className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                              disabled={!canEdit}
+                              className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Delete
                             </button>
