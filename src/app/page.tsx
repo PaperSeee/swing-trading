@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+type ThemeMode = "dark" | "light";
+
 type Session = {
   id: string;
   pair: string;
@@ -103,6 +105,23 @@ export default function Home() {
   const [tradeNotes, setTradeNotes] = useState("");
   const [tradeChartUrl, setTradeChartUrl] = useState("");
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("theme-mode");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setThemeMode(savedTheme);
+      return;
+    }
+
+    const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+    setThemeMode(prefersLight ? "light" : "dark");
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", themeMode);
+    window.localStorage.setItem("theme-mode", themeMode);
+  }, [themeMode]);
 
   const selectedSession = useMemo(
     () => sessions.find((session) => session.id === selectedSessionId),
@@ -178,7 +197,12 @@ export default function Home() {
     setSessionEditPair(selectedSession.pair);
     setSessionEditMonth(selectedSession.month);
     setSessionEditYear(selectedSession.year);
-  }, [selectedSession]);
+
+    if (!editingTradeId) {
+      const month = String(selectedSession.month).padStart(2, "0");
+      setTradeDate(`${selectedSession.year}-${month}-01`);
+    }
+  }, [selectedSession, editingTradeId]);
 
   function resetTradeForm() {
     setEditingTradeId(null);
@@ -433,15 +457,6 @@ export default function Home() {
       }
     }
 
-    const bestTrade =
-      sortedTrades.length > 0
-        ? sortedTrades.reduce((best, trade) => (trade.r_value > best.r_value ? trade : best), sortedTrades[0])
-        : null;
-    const worstTrade =
-      sortedTrades.length > 0
-        ? sortedTrades.reduce((worst, trade) => (trade.r_value < worst.r_value ? trade : worst), sortedTrades[0])
-        : null;
-
     const longTrades = trades.filter((trade) => trade.side === "long");
     const shortTrades = trades.filter((trade) => trade.side === "short");
     const longR = longTrades.reduce((sum, trade) => sum + Number(trade.r_value), 0);
@@ -480,8 +495,6 @@ export default function Home() {
       bestBeStreak,
       latestStreakType,
       latestStreakValue,
-      bestTrade,
-      worstTrade,
       longTrades: longTrades.length,
       shortTrades: shortTrades.length,
       longR,
@@ -490,6 +503,28 @@ export default function Home() {
       uniqueTradeDays,
       tradesPerDay,
     };
+  }, [trades]);
+
+  const monthlyPnl = useMemo(() => {
+    const byMonth = new Map<string, number>();
+
+    trades.forEach((trade) => {
+      const key = trade.trade_date.slice(0, 7);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + Number(trade.r_value));
+    });
+
+    return [...byMonth.entries()]
+      .map(([key, totalR]) => {
+        const [yearString, monthString] = key.split("-");
+        const month = Number(monthString);
+        const year = Number(yearString);
+        return {
+          key,
+          label: `${monthLabel(month)} ${year}`,
+          totalR: Number(totalR.toFixed(2)),
+        };
+      })
+      .sort((a, b) => b.key.localeCompare(a.key));
   }, [trades]);
 
   const tradesByRecency = useMemo(() => {
@@ -506,11 +541,22 @@ export default function Home() {
     <main className="min-h-screen bg-background px-4 py-8 sm:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <header className="rounded-2xl border border-foreground/20 bg-foreground/5 px-6 py-5 backdrop-blur">
-          <p className="text-xs uppercase tracking-[0.2em] text-foreground/70">Trading Analytics Platform</p>
-          <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Backtest Journal</h1>
-          <p className="mt-2 text-sm text-foreground/75">
-            Build sessions, track trades, and review a full performance recap with institutional-style metrics.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-foreground/70">Trading Analytics Platform</p>
+              <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Backtest Journal</h1>
+              <p className="mt-2 text-sm text-foreground/75">
+                Build sessions, track trades, and review a full performance recap with institutional-style metrics.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setThemeMode((current) => (current === "dark" ? "light" : "dark"))}
+              className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
+            >
+              {themeMode === "dark" ? "Switch to Light" : "Switch to Dark"}
+            </button>
+          </div>
         </header>
 
         <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
@@ -840,12 +886,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 xl:grid-cols-3">
-                <div className="rounded-lg border border-foreground/20 bg-background p-4 text-sm">
-                  <h4 className="font-semibold uppercase tracking-wide text-foreground/70">Best / Worst Trade</h4>
-                  <p className="mt-2">Best: {summary.bestTrade ? `${summary.bestTrade.trade_date} · ${formatR(summary.bestTrade.r_value)}` : "—"}</p>
-                  <p>Worst: {summary.worstTrade ? `${summary.worstTrade.trade_date} · ${summary.worstTrade.r_value.toFixed(2)}R` : "—"}</p>
-                </div>
+              <div className="mt-4 grid gap-4 xl:grid-cols-2">
                 <div className="rounded-lg border border-foreground/20 bg-background p-4 text-sm">
                   <h4 className="font-semibold uppercase tracking-wide text-foreground/70">Side Performance</h4>
                   <p className="mt-2">Long: {summary.longTrades} trades · {formatR(summary.longR)}</p>
@@ -855,6 +896,19 @@ export default function Home() {
                   <h4 className="font-semibold uppercase tracking-wide text-foreground/70">Activity</h4>
                   <p className="mt-2">Trading Days: {summary.uniqueTradeDays}</p>
                   <p>Trades / Day: {summary.tradesPerDay.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-foreground/20 bg-background p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Monthly P&L Recap (Selected Session · by trade date)</h4>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {monthlyPnl.map((month) => (
+                    <div key={month.key} className="rounded-md border border-foreground/20 bg-foreground/5 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-foreground/70">{month.label}</p>
+                      <p className="mt-1 text-lg font-semibold">{formatR(month.totalR)}</p>
+                    </div>
+                  ))}
+                  {monthlyPnl.length === 0 && <p className="text-sm text-foreground/70">No monthly data yet.</p>}
                 </div>
               </div>
             </div>
@@ -924,6 +978,8 @@ export default function Home() {
             </div>
           </section>
         </div>
+
+        <footer className="text-center text-xs uppercase tracking-wide text-foreground/60">made by hqgambler</footer>
       </div>
     </main>
   );
