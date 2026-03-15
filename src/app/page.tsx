@@ -730,69 +730,76 @@ export default function Home() {
 
         <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
           <aside className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
-            <h2 className="text-base font-semibold">Create Session</h2>
-            <p className="mt-1 text-sm text-foreground/70">Choose pair, month, and year to start a new journal block.</p>
+            {canEdit ? (
+              <>
+                <h2 className="text-base font-semibold">Create Session</h2>
+                <p className="mt-1 text-sm text-foreground/70">Choose pair, month, and year to start a new journal block.</p>
 
-            <form onSubmit={handleCreateSession} className="mt-4 grid gap-3">
-              <label className="grid gap-1 text-sm">
-                Pair
-                <select
-                  value={sessionPair}
-                  onChange={(event) => setSessionPair(event.target.value)}
-                  className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
-                >
-                  {PAIR_GROUPS.map((group) => (
-                    <optgroup key={group.label} label={group.label}>
-                      {group.options.map((pair) => (
-                        <option key={pair} value={pair}>
-                          {pair}
+                <form onSubmit={handleCreateSession} className="mt-4 grid gap-3">
+                  <label className="grid gap-1 text-sm">
+                    Pair
+                    <select
+                      value={sessionPair}
+                      onChange={(event) => setSessionPair(event.target.value)}
+                      className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
+                    >
+                      {PAIR_GROUPS.map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map((pair) => (
+                            <option key={pair} value={pair}>
+                              {pair}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="grid gap-1 text-sm">
+                    Month
+                    <select
+                      value={sessionMonth}
+                      onChange={(event) => setSessionMonth(Number(event.target.value))}
+                      className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
+                    >
+                      {MONTHS.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.label}
                         </option>
                       ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
+                    </select>
+                  </label>
 
-              <label className="grid gap-1 text-sm">
-                Month
-                <select
-                  value={sessionMonth}
-                  onChange={(event) => setSessionMonth(Number(event.target.value))}
-                  className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
-                >
-                  {MONTHS.map((month) => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <label className="grid gap-1 text-sm">
+                    Year
+                    <select
+                      value={sessionYear}
+                      onChange={(event) => setSessionYear(Number(event.target.value))}
+                      className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
+                    >
+                      {years.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-              <label className="grid gap-1 text-sm">
-                Year
-                <select
-                  value={sessionYear}
-                  onChange={(event) => setSessionYear(Number(event.target.value))}
-                  className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
-                >
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <button
-                type="submit"
-                disabled={!canEdit}
-                className="mt-1 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Create Session
-              </button>
-            </form>
-
-            {!canEdit && <p className="mt-2 text-xs text-foreground/70">Read-only: unlock editor access to create sessions.</p>}
+                  <button
+                    type="submit"
+                    disabled={!canEdit}
+                    className="mt-1 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Create Session
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold">Read-only View</h2>
+                <p className="mt-1 text-sm text-foreground/70">You can browse sessions, summaries, and trade logs.</p>
+              </>
+            )}
 
             <div className="mt-6 border-t border-foreground/15 pt-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Sessions</h3>
@@ -824,7 +831,7 @@ export default function Home() {
 
           <section className="space-y-6">
             <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
-              <h2 className="text-lg font-semibold">Active Session</h2>
+              <h2 className="text-lg font-semibold">{canEdit ? "Active Session" : "Viewing Session"}</h2>
               {selectedSession ? (
                 <p className="mt-1 text-sm text-foreground/75">
                   {selectedSession.pair} · {monthLabel(selectedSession.month)} {selectedSession.year}
@@ -912,7 +919,11 @@ export default function Home() {
               )}
               {loading && <p className="mt-3 text-sm text-foreground/70">Loading...</p>}
 
-              <form onSubmit={handleSaveTrade} className="mt-4 grid gap-3 rounded-xl border border-foreground/20 bg-background p-4">
+              {!canEdit && <p className="mt-3 text-sm text-foreground/70">Editing inputs are hidden in read-only mode.</p>}
+
+              {canEdit && (
+                <>
+                  <form onSubmit={handleSaveTrade} className="mt-4 grid gap-3 rounded-xl border border-foreground/20 bg-background p-4">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <label className="grid gap-1 text-sm">
                     Date
@@ -985,26 +996,27 @@ export default function Home() {
                   />
                 </label>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="submit"
-                    disabled={!canEdit}
-                    className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
-                  >
-                    {editingTradeId ? "Update Trade" : "Add Trade"}
-                  </button>
-                  {editingTradeId && (
-                    <button
-                      type="button"
-                      onClick={resetTradeForm}
-                      className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-fit"
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
-                </div>
-              </form>
-              {!canEdit && <p className="mt-2 text-xs text-foreground/70">Read-only: unlock editor access to add or edit trades.</p>}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        disabled={!canEdit}
+                        className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+                      >
+                        {editingTradeId ? "Update Trade" : "Add Trade"}
+                      </button>
+                      {editingTradeId && (
+                        <button
+                          type="button"
+                          onClick={resetTradeForm}
+                          className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-fit"
+                        >
+                          Cancel Edit
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </>
+              )}
             </div>
 
             <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
