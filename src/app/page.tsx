@@ -538,9 +538,9 @@ export default function Home() {
   }, [trades]);
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 sm:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="rounded-2xl border border-foreground/20 bg-foreground/5 px-6 py-5 backdrop-blur">
+    <main className="min-h-screen bg-background px-3 py-5 sm:px-6 sm:py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-6">
+        <header className="rounded-2xl border border-foreground/20 bg-foreground/5 px-4 py-4 backdrop-blur sm:px-6 sm:py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-foreground/70">Trading Analytics Platform</p>
@@ -552,7 +552,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setThemeMode((current) => (current === "dark" ? "light" : "dark"))}
-              className="group inline-flex items-center gap-2 rounded-full border border-foreground/30 bg-background/80 px-3 py-1.5 text-sm font-medium shadow-sm transition hover:scale-[1.02]"
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-foreground/30 bg-background/80 px-3 py-1.5 text-sm font-medium shadow-sm transition hover:scale-[1.02] sm:w-auto"
               aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-foreground/20 bg-foreground/10 text-xs">
@@ -564,7 +564,7 @@ export default function Home() {
         </header>
 
         <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
-          <aside className="rounded-2xl border border-foreground/20 bg-foreground/5 p-5">
+          <aside className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
             <h2 className="text-base font-semibold">Create Session</h2>
             <p className="mt-1 text-sm text-foreground/70">Choose pair, month, and year to start a new journal block.</p>
 
@@ -652,7 +652,7 @@ export default function Home() {
           </aside>
 
           <section className="space-y-6">
-            <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-5">
+            <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
               <h2 className="text-lg font-semibold">Active Session</h2>
               {selectedSession ? (
                 <p className="mt-1 text-sm text-foreground/75">
@@ -717,14 +717,14 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => void handleUpdateSession()}
-                      className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background"
+                      className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background sm:w-auto"
                     >
                       Update Session
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleDeleteSession()}
-                      className="rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium"
+                      className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-auto"
                     >
                       Delete Session
                     </button>
@@ -813,14 +813,14 @@ export default function Home() {
                 </label>
 
                 <div className="flex flex-wrap gap-2">
-                  <button type="submit" className="w-fit rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background">
+                  <button type="submit" className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background sm:w-fit">
                     {editingTradeId ? "Update Trade" : "Add Trade"}
                   </button>
                   {editingTradeId && (
                     <button
                       type="button"
                       onClick={resetTradeForm}
-                      className="w-fit rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium"
+                      className="w-full rounded-lg border border-foreground/30 px-4 py-2 text-sm font-medium sm:w-fit"
                     >
                       Cancel Edit
                     </button>
@@ -829,7 +829,7 @@ export default function Home() {
               </form>
             </div>
 
-            <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-5">
+            <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
               <h3 className="text-lg font-semibold">Session Summary</h3>
               <p className="mt-1 text-sm text-foreground/70">Comprehensive recap: distribution, streaks, risk, and performance quality.</p>
 
@@ -917,9 +917,51 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-5">
+            <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
               <h3 className="text-lg font-semibold">Trade Log</h3>
-              <div className="mt-4 overflow-x-auto rounded-lg border border-foreground/20 bg-background">
+
+              <div className="mt-4 grid gap-3 md:hidden">
+                {tradesByRecency.map((trade) => (
+                  <article key={trade.id} className="rounded-lg border border-foreground/20 bg-background p-3 text-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{trade.trade_date}</p>
+                      <p className="text-xs uppercase text-foreground/70">{trade.side}</p>
+                    </div>
+                    <p className="mt-1 text-xs uppercase text-foreground/70">
+                      {trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"} · {trade.r_value.toFixed(2)}R
+                    </p>
+                    <p className="mt-2 text-foreground/80">{trade.notes || "—"}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {trade.chart_url && (
+                        <a href={trade.chart_url} target="_blank" rel="noreferrer" className="rounded-md border border-foreground/30 px-2 py-1 text-xs">
+                          Open Chart
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => startEditingTrade(trade)}
+                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteTrade(trade.id)}
+                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                {tradesByRecency.length === 0 && (
+                  <div className="rounded-lg border border-foreground/20 bg-background px-3 py-6 text-center text-sm text-foreground/70">
+                    No trades in this session yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 hidden overflow-x-auto rounded-lg border border-foreground/20 bg-background md:block">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-foreground/20 text-left text-xs uppercase tracking-wide text-foreground/70">
