@@ -840,7 +840,7 @@ export default function Home() {
                 <p className="mt-1 text-sm text-foreground/75">Create or select a session to begin.</p>
               )}
 
-              {selectedSession && (
+              {selectedSession && canEdit && (
                 <div className="mt-4 grid gap-3 rounded-xl border border-foreground/20 bg-background p-4 md:grid-cols-3">
                   <label className="grid gap-1 text-sm">
                     Pair
