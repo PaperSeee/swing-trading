@@ -552,9 +552,13 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setThemeMode((current) => (current === "dark" ? "light" : "dark"))}
-              className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
+              className="group inline-flex items-center gap-2 rounded-full border border-foreground/30 bg-background/80 px-3 py-1.5 text-sm font-medium shadow-sm transition hover:scale-[1.02]"
+              aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
-              {themeMode === "dark" ? "Switch to Light" : "Switch to Dark"}
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-foreground/20 bg-foreground/10 text-xs">
+                {themeMode === "dark" ? "☀️" : "🌙"}
+              </span>
+              <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
             </button>
           </div>
         </header>
