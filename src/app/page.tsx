@@ -107,10 +107,11 @@ export default function Home() {
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
   const [editKeyInput, setEditKeyInput] = useState("");
   const [editKey, setEditKey] = useState("");
+  const [isEditAuthorized, setIsEditAuthorized] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
 
   useEffect(() => {
-    const savedEditKey = window.localStorage.getItem("edit-access-key") ?? "";
+    const savedEditKey = (window.localStorage.getItem("edit-access-key") ?? "").trim();
     setEditKey(savedEditKey);
     setEditKeyInput(savedEditKey);
 
@@ -135,7 +136,41 @@ export default function Home() {
   );
 
   const activeEditKey = editKeyInput.trim() || editKey.trim();
-  const canEdit = activeEditKey.length > 0;
+  const canEdit = isEditAuthorized && activeEditKey.length > 0;
+
+  async function verifyEditAccess(key: string) {
+    const trimmed = key.trim();
+    if (!trimmed) {
+      setIsEditAuthorized(false);
+      return;
+    }
+
+    const response = await fetch("/api/edit-access", {
+      method: "POST",
+      headers: {
+        "x-edit-key": trimmed,
+      },
+    });
+
+    if (response.ok) {
+      setIsEditAuthorized(true);
+      return;
+    }
+
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    setIsEditAuthorized(false);
+    throw new Error(result?.error ?? "Invalid edit key.");
+  }
+
+  useEffect(() => {
+    if (!editKey) {
+      return;
+    }
+
+    void verifyEditAccess(editKey).catch(() => {
+      setIsEditAuthorized(false);
+    });
+  }, [editKey]);
 
   function buildRequestHeaders(withJsonContentType: boolean) {
     const headers = new Headers();
@@ -259,6 +294,9 @@ export default function Home() {
 
       const result = await response.json();
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsEditAuthorized(false);
+        }
         throw new Error(result.error ?? "Unable to create session.");
       }
 
@@ -297,6 +335,9 @@ export default function Home() {
 
       const result = await response.json();
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsEditAuthorized(false);
+        }
         throw new Error(result.error ?? "Unable to update session.");
       }
 
@@ -334,6 +375,9 @@ export default function Home() {
       const result = await response.json();
 
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsEditAuthorized(false);
+        }
         throw new Error(result.error ?? "Unable to delete session.");
       }
 
@@ -379,6 +423,9 @@ export default function Home() {
 
       const result = await response.json();
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsEditAuthorized(false);
+        }
         throw new Error(result.error ?? `Unable to ${editingTradeId ? "update" : "create"} trade.`);
       }
 
@@ -422,6 +469,9 @@ export default function Home() {
       const result = await response.json();
 
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsEditAuthorized(false);
+        }
         throw new Error(result.error ?? "Unable to delete trade.");
       }
 
@@ -622,6 +672,7 @@ export default function Home() {
               onChange={(event) => {
                 setEditKeyInput(event.target.value);
                 setEditKey(event.target.value);
+                setIsEditAuthorized(false);
               }}
               className="min-w-0 flex-1 rounded-lg border border-foreground/25 bg-background px-3 py-2 text-sm"
               placeholder="Enter edit key"
@@ -632,6 +683,10 @@ export default function Home() {
                 const nextKey = editKeyInput.trim();
                 setEditKey(nextKey);
                 window.localStorage.setItem("edit-access-key", nextKey);
+                void verifyEditAccess(nextKey).catch((unlockError) => {
+                  const message = unlockError instanceof Error ? unlockError.message : "Invalid edit key.";
+                  setError(message);
+                });
               }}
               className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
             >
@@ -642,6 +697,7 @@ export default function Home() {
               onClick={() => {
                 setEditKey("");
                 setEditKeyInput("");
+                setIsEditAuthorized(false);
                 window.localStorage.removeItem("edit-access-key");
               }}
               className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
