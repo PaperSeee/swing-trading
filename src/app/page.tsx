@@ -108,6 +108,7 @@ export default function Home() {
   const [editKeyInput, setEditKeyInput] = useState("");
   const [editKey, setEditKey] = useState("");
   const [isEditAuthorized, setIsEditAuthorized] = useState(false);
+  const [showEditorPanel, setShowEditorPanel] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
 
   useEffect(() => {
@@ -171,6 +172,23 @@ export default function Home() {
       setIsEditAuthorized(false);
     });
   }, [editKey]);
+
+  useEffect(() => {
+    function handleToggleEditorPanel(event: KeyboardEvent) {
+      const isShortcut = (event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "e";
+      if (!isShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+      setShowEditorPanel((current) => !current);
+    }
+
+    window.addEventListener("keydown", handleToggleEditorPanel);
+    return () => {
+      window.removeEventListener("keydown", handleToggleEditorPanel);
+    };
+  }, []);
 
   function buildRequestHeaders(withJsonContentType: boolean) {
     const headers = new Headers();
@@ -664,48 +682,50 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-foreground/20 bg-background/60 p-3 sm:flex-row sm:items-center">
-            <p className="text-xs uppercase tracking-wide text-foreground/70">Editor Access</p>
-            <input
-              type="password"
-              value={editKeyInput}
-              onChange={(event) => {
-                setEditKeyInput(event.target.value);
-                setEditKey(event.target.value);
-                setIsEditAuthorized(false);
-              }}
-              className="min-w-0 flex-1 rounded-lg border border-foreground/25 bg-background px-3 py-2 text-sm"
-              placeholder="Enter edit key"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const nextKey = editKeyInput.trim();
-                setEditKey(nextKey);
-                window.localStorage.setItem("edit-access-key", nextKey);
-                void verifyEditAccess(nextKey).catch((unlockError) => {
-                  const message = unlockError instanceof Error ? unlockError.message : "Invalid edit key.";
-                  setError(message);
-                });
-              }}
-              className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
-            >
-              Unlock
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditKey("");
-                setEditKeyInput("");
-                setIsEditAuthorized(false);
-                window.localStorage.removeItem("edit-access-key");
-              }}
-              className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
-            >
-              Lock
-            </button>
-            <span className="text-xs text-foreground/70">{canEdit ? "Edit mode enabled" : "Read-only mode"}</span>
-          </div>
+          {showEditorPanel && (
+            <div className="mt-3 flex flex-col gap-2 rounded-xl border border-foreground/20 bg-background/60 p-3 sm:flex-row sm:items-center">
+              <p className="text-xs uppercase tracking-wide text-foreground/70">Editor Access</p>
+              <input
+                type="password"
+                value={editKeyInput}
+                onChange={(event) => {
+                  setEditKeyInput(event.target.value);
+                  setEditKey(event.target.value);
+                  setIsEditAuthorized(false);
+                }}
+                className="min-w-0 flex-1 rounded-lg border border-foreground/25 bg-background px-3 py-2 text-sm"
+                placeholder="Enter edit key"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const nextKey = editKeyInput.trim();
+                  setEditKey(nextKey);
+                  window.localStorage.setItem("edit-access-key", nextKey);
+                  void verifyEditAccess(nextKey).catch((unlockError) => {
+                    const message = unlockError instanceof Error ? unlockError.message : "Invalid edit key.";
+                    setError(message);
+                  });
+                }}
+                className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
+              >
+                Unlock
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditKey("");
+                  setEditKeyInput("");
+                  setIsEditAuthorized(false);
+                  window.localStorage.removeItem("edit-access-key");
+                }}
+                className="rounded-lg border border-foreground/30 px-3 py-2 text-sm font-medium"
+              >
+                Lock
+              </button>
+              <span className="text-xs text-foreground/70">{canEdit ? "Edit mode enabled" : "Read-only mode"}</span>
+            </div>
+          )}
         </header>
 
         <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
