@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const READ_ONLY_MESSAGE = "Read-only mode is enabled.";
 
 export function ensureEditAccess(request: Request) {
-  const expectedKey = process.env.EDIT_ACCESS_KEY;
+  const expectedKey = process.env.EDIT_ACCESS_KEY?.trim();
 
   if (!expectedKey) {
     if (process.env.NODE_ENV !== "production") {

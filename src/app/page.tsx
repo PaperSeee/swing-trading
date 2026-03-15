@@ -134,7 +134,8 @@ export default function Home() {
     [sessions, selectedSessionId],
   );
 
-  const canEdit = editKey.trim().length > 0;
+  const activeEditKey = editKeyInput.trim() || editKey.trim();
+  const canEdit = activeEditKey.length > 0;
 
   function buildRequestHeaders(withJsonContentType: boolean) {
     const headers = new Headers();
@@ -144,7 +145,7 @@ export default function Home() {
     }
 
     if (canEdit) {
-      headers.set("x-edit-key", editKey);
+      headers.set("x-edit-key", activeEditKey);
     }
 
     return headers;
@@ -618,7 +619,10 @@ export default function Home() {
             <input
               type="password"
               value={editKeyInput}
-              onChange={(event) => setEditKeyInput(event.target.value)}
+              onChange={(event) => {
+                setEditKeyInput(event.target.value);
+                setEditKey(event.target.value);
+              }}
               className="min-w-0 flex-1 rounded-lg border border-foreground/25 bg-background px-3 py-2 text-sm"
               placeholder="Enter edit key"
             />
