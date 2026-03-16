@@ -7,6 +7,7 @@ type TradeRow = {
   session_id: string;
   outcome: "win" | "lose" | "be";
   r_value: number;
+  is_warning: boolean;
 };
 
 export async function GET() {
@@ -30,7 +31,7 @@ export async function GET() {
     if (sessionIds.length > 0) {
       const { data: tradesData, error: tradesError } = await supabase
         .from("trades")
-        .select("session_id, outcome, r_value")
+        .select("session_id, outcome, r_value, is_warning")
         .in("session_id", sessionIds);
 
       if (tradesError) {
@@ -42,6 +43,9 @@ export async function GET() {
 
     const statsBySessionId = new Map<string, { totalTrades: number; totalR: number }>();
     trades.forEach((trade) => {
+      if (trade.is_warning) {
+        return;
+      }
       const current = statsBySessionId.get(trade.session_id) ?? { totalTrades: 0, totalR: 0 };
       current.totalTrades += 1;
       current.totalR += Number(trade.r_value);

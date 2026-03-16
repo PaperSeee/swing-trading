@@ -20,6 +20,8 @@ type Trade = {
   trade_date: string;
   side: "long" | "short";
   outcome: "win" | "lose" | "be";
+  is_warning: boolean;
+  warning_reason: string | null;
   r_value: number;
   notes: string | null;
   chart_url: string | null;
@@ -102,6 +104,8 @@ export default function Home() {
   const [tradeDate, setTradeDate] = useState(initialDate);
   const [tradeSide, setTradeSide] = useState<"long" | "short">("long");
   const [tradeOutcome, setTradeOutcome] = useState<"win" | "lose" | "be">("win");
+  const [tradeIsWarning, setTradeIsWarning] = useState(false);
+  const [tradeWarningReason, setTradeWarningReason] = useState("");
   const [tradeRValue, setTradeRValue] = useState(OUTCOME_DEFAULT_R.win);
   const [tradeNotes, setTradeNotes] = useState("");
   const [tradeChartUrl, setTradeChartUrl] = useState("");
@@ -297,6 +301,8 @@ export default function Home() {
     setTradeDate(initialDate);
     setTradeSide("long");
     setTradeOutcome("win");
+    setTradeIsWarning(false);
+    setTradeWarningReason("");
     setTradeRValue(OUTCOME_DEFAULT_R.win);
     setTradeNotes("");
     setTradeChartUrl("");
@@ -433,6 +439,11 @@ export default function Home() {
       return;
     }
 
+    if (tradeIsWarning && !tradeWarningReason.trim()) {
+      setError("Warning trades require a reason.");
+      return;
+    }
+
     try {
       const method = editingTradeId ? "PATCH" : "POST";
       const response = await fetch("/api/trades", {
@@ -444,6 +455,8 @@ export default function Home() {
           tradeDate,
           side: tradeSide,
           outcome: tradeOutcome,
+          isWarning: tradeIsWarning,
+          warningReason: tradeWarningReason,
           rValue: Number(tradeRValue),
           notes: tradeNotes,
           chartUrl: tradeChartUrl,
@@ -477,6 +490,8 @@ export default function Home() {
     setTradeDate(trade.trade_date);
     setTradeSide(trade.side);
     setTradeOutcome(trade.outcome);
+    setTradeIsWarning(trade.is_warning);
+    setTradeWarningReason(trade.warning_reason ?? "");
     setTradeRValue(String(trade.r_value));
     setTradeNotes(trade.notes ?? "");
     setTradeChartUrl(trade.chart_url ?? "");
@@ -526,11 +541,13 @@ export default function Home() {
     return Array.from({ length: currentYear - 2020 + 1 }, (_, index) => currentYear - index);
   }, []);
 
+  const statsTrades = useMemo(() => trades.filter((trade) => !trade.is_warning), [trades]);
+
   const summary = useMemo(() => {
-    const totalTrades = trades.length;
-    const wins = trades.filter((trade) => trade.outcome === "win");
-    const losses = trades.filter((trade) => trade.outcome === "lose");
-    const breakeven = trades.filter((trade) => trade.outcome === "be");
+    const totalTrades = statsTrades.length;
+    const wins = statsTrades.filter((trade) => trade.outcome === "win");
+    const losses = statsTrades.filter((trade) => trade.outcome === "lose");
+    const breakeven = statsTrades.filter((trade) => trade.outcome === "be");
 
     const winCount = wins.length;
     const lossCount = losses.length;
@@ -538,7 +555,7 @@ export default function Home() {
 
     const grossProfitR = wins.reduce((sum, trade) => sum + Number(trade.r_value), 0);
     const grossLossR = losses.reduce((sum, trade) => sum + Number(trade.r_value), 0);
-    const totalR = trades.reduce((sum, trade) => sum + Number(trade.r_value), 0);
+    const totalR = statsTrades.reduce((sum, trade) => sum + Number(trade.r_value), 0);
 
     const averageR = totalTrades > 0 ? totalR / totalTrades : 0;
     const averageWinR = winCount > 0 ? grossProfitR / winCount : 0;
@@ -551,7 +568,7 @@ export default function Home() {
 
     const profitFactor = Math.abs(grossLossR) > 0 ? grossProfitR / Math.abs(grossLossR) : null;
 
-    const sortedTrades = [...trades].sort((a, b) => {
+    const sortedTrades = [...statsTrades].sort((a, b) => {
       const dateCompare = a.trade_date.localeCompare(b.trade_date);
       if (dateCompare !== 0) {
         return dateCompare;
@@ -594,8 +611,8 @@ export default function Home() {
       }
     }
 
-    const longTrades = trades.filter((trade) => trade.side === "long");
-    const shortTrades = trades.filter((trade) => trade.side === "short");
+    const longTrades = statsTrades.filter((trade) => trade.side === "long");
+    const shortTrades = statsTrades.filter((trade) => trade.side === "short");
     const longR = longTrades.reduce((sum, trade) => sum + Number(trade.r_value), 0);
     const shortR = shortTrades.reduce((sum, trade) => sum + Number(trade.r_value), 0);
 
@@ -608,7 +625,7 @@ export default function Home() {
       maxDrawdown = Math.max(maxDrawdown, peak - equity);
     });
 
-    const uniqueTradeDays = new Set(trades.map((trade) => trade.trade_date)).size;
+    const uniqueTradeDays = new Set(statsTrades.map((trade) => trade.trade_date)).size;
     const tradesPerDay = uniqueTradeDays > 0 ? totalTrades / uniqueTradeDays : 0;
 
     return {
@@ -640,12 +657,12 @@ export default function Home() {
       uniqueTradeDays,
       tradesPerDay,
     };
-  }, [trades]);
+  }, [statsTrades]);
 
   const monthlyPnl = useMemo(() => {
     const byMonth = new Map<string, number>();
 
-    trades.forEach((trade) => {
+    statsTrades.forEach((trade) => {
       const key = trade.trade_date.slice(0, 7);
       byMonth.set(key, (byMonth.get(key) ?? 0) + Number(trade.r_value));
     });
@@ -662,12 +679,12 @@ export default function Home() {
         };
       })
       .sort((a, b) => b.key.localeCompare(a.key));
-  }, [trades]);
+  }, [statsTrades]);
 
   const yearlyPnl = useMemo(() => {
     const byYear = new Map<string, number>();
 
-    trades.forEach((trade) => {
+    statsTrades.forEach((trade) => {
       const year = trade.trade_date.slice(0, 4);
       byYear.set(year, (byYear.get(year) ?? 0) + Number(trade.r_value));
     });
@@ -678,7 +695,7 @@ export default function Home() {
         totalR: Number(totalR.toFixed(2)),
       }))
       .sort((a, b) => b.year.localeCompare(a.year));
-  }, [trades]);
+  }, [statsTrades]);
 
   const tradesByRecency = useMemo(() => {
     return [...trades].sort((a, b) => {
@@ -1090,6 +1107,35 @@ export default function Home() {
                   />
                 </label>
 
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={tradeIsWarning}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setTradeIsWarning(checked);
+                      if (!checked) {
+                        setTradeWarningReason("");
+                      }
+                    }}
+                    className="h-4 w-4"
+                  />
+                  Mark as Warning Trade (excluded from stats)
+                </label>
+
+                {tradeIsWarning && (
+                  <label className="grid gap-1 text-sm">
+                    Warning Reason
+                    <textarea
+                      required
+                      value={tradeWarningReason}
+                      onChange={(event) => setTradeWarningReason(event.target.value)}
+                      className="min-h-16 rounded-lg border border-foreground/20 bg-background px-3 py-2"
+                      placeholder="Explain why this trade should be excluded from stats"
+                    />
+                  </label>
+                )}
+
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="submit"
@@ -1116,6 +1162,7 @@ export default function Home() {
             <div className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
               <h3 className="text-lg font-semibold">Session Summary</h3>
               <p className="mt-1 text-sm text-foreground/70">Comprehensive recap: distribution, streaks, risk, and performance quality.</p>
+              <p className="mt-1 text-xs uppercase tracking-wide text-foreground/60">Warning trades are excluded from all stats and recaps.</p>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-lg border border-foreground/20 bg-background p-3">
@@ -1219,7 +1266,10 @@ export default function Home() {
 
               <div className="mt-4 grid gap-3 md:hidden">
                 {tradesByRecency.map((trade) => (
-                  <article key={trade.id} className="rounded-lg border border-foreground/20 bg-background p-3 text-sm">
+                  <article
+                    key={trade.id}
+                    className={`rounded-lg border p-3 text-sm ${trade.is_warning ? "border-amber-500/60 bg-amber-500/10" : "border-foreground/20 bg-background"}`}
+                  >
                     {editingTradeId === trade.id ? (
                       <div className="grid gap-2">
                         <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
@@ -1277,6 +1327,32 @@ export default function Home() {
                             className="min-h-16 rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
                           />
                         </label>
+                        <label className="flex items-center gap-2 text-xs uppercase tracking-wide text-foreground/70">
+                          <input
+                            type="checkbox"
+                            checked={tradeIsWarning}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setTradeIsWarning(checked);
+                              if (!checked) {
+                                setTradeWarningReason("");
+                              }
+                            }}
+                            className="h-4 w-4"
+                          />
+                          Warning trade
+                        </label>
+                        {tradeIsWarning && (
+                          <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
+                            Warning Reason
+                            <textarea
+                              required
+                              value={tradeWarningReason}
+                              onChange={(event) => setTradeWarningReason(event.target.value)}
+                              className="min-h-16 rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
+                            />
+                          </label>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -1287,6 +1363,12 @@ export default function Home() {
                         <p className="mt-1 text-xs uppercase text-foreground/70">
                           {trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"} · {trade.r_value.toFixed(2)}R
                         </p>
+                        {trade.is_warning && (
+                          <p className="mt-1 inline-flex w-fit rounded-md border border-amber-500/60 bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200">
+                            Warning Trade
+                          </p>
+                        )}
+                        {trade.is_warning && trade.warning_reason && <p className="mt-2 text-amber-200/90">Reason: {trade.warning_reason}</p>}
                         <p className="mt-2 text-foreground/80">{trade.notes || "—"}</p>
                       </>
                     )}
@@ -1357,7 +1439,7 @@ export default function Home() {
                   </thead>
                   <tbody>
                     {tradesByRecency.map((trade) => (
-                      <tr key={trade.id} className="border-b border-foreground/10 align-top">
+                      <tr key={trade.id} className={`border-b align-top ${trade.is_warning ? "border-amber-500/40 bg-amber-500/10" : "border-foreground/10"}`}>
                         <td className="px-3 py-3">
                           {editingTradeId === trade.id ? (
                             <input
@@ -1399,7 +1481,14 @@ export default function Home() {
                               <option value="be">BE</option>
                             </select>
                           ) : (
-                            trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"
+                            <div className="space-y-1">
+                              <p>{trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"}</p>
+                              {trade.is_warning && (
+                                <p className="inline-flex w-fit rounded-md border border-amber-500/60 bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200">
+                                  Warning
+                                </p>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-3 py-3">
@@ -1423,7 +1512,10 @@ export default function Home() {
                               className="w-full min-w-40 rounded-md border border-foreground/20 bg-background px-2 py-1"
                             />
                           ) : (
-                            trade.notes || "—"
+                            <div className="space-y-1">
+                              <p>{trade.notes || "—"}</p>
+                              {trade.is_warning && trade.warning_reason && <p className="text-amber-200/90">Reason: {trade.warning_reason}</p>}
+                            </div>
                           )}
                         </td>
                         <td className="px-3 py-3">
@@ -1437,6 +1529,32 @@ export default function Home() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex flex-wrap gap-2">
+                            {editingTradeId === trade.id && (
+                              <label className="flex items-center gap-2 text-xs uppercase tracking-wide text-foreground/70">
+                                <input
+                                  type="checkbox"
+                                  checked={tradeIsWarning}
+                                  onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setTradeIsWarning(checked);
+                                    if (!checked) {
+                                      setTradeWarningReason("");
+                                    }
+                                  }}
+                                  className="h-4 w-4"
+                                />
+                                Warning
+                              </label>
+                            )}
+                            {editingTradeId === trade.id && tradeIsWarning && (
+                              <textarea
+                                required
+                                value={tradeWarningReason}
+                                onChange={(event) => setTradeWarningReason(event.target.value)}
+                                className="w-full min-w-40 rounded-md border border-foreground/20 bg-background px-2 py-1"
+                                placeholder="Warning reason"
+                              />
+                            )}
                             {editingTradeId === trade.id ? (
                               <>
                                 <button

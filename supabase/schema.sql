@@ -17,11 +17,32 @@ create table if not exists public.trades (
   trade_date date not null,
   side text not null check (side in ('long', 'short')),
   outcome text not null check (outcome in ('win', 'lose', 'be')),
+  is_warning boolean not null default false,
+  warning_reason text,
   r_value numeric(10, 2) not null,
   notes text,
   chart_url text,
   created_at timestamptz not null default now()
 );
+
+alter table public.trades add column if not exists is_warning boolean not null default false;
+alter table public.trades add column if not exists warning_reason text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'trades_warning_reason_required'
+  ) then
+    alter table public.trades
+    add constraint trades_warning_reason_required
+    check (
+      (is_warning = true and warning_reason is not null and length(btrim(warning_reason)) > 0)
+      or is_warning = false
+    );
+  end if;
+end $$;
 
 alter table public.backtest_sessions disable row level security;
 alter table public.trades disable row level security;
