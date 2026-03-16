@@ -528,8 +528,9 @@ export default function Home() {
     const averageWinR = winCount > 0 ? grossProfitR / winCount : 0;
     const averageLossR = lossCount > 0 ? Math.abs(grossLossR / lossCount) : 0;
 
-    const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
-    const lossRate = totalTrades > 0 ? (lossCount / totalTrades) * 100 : 0;
+    const decisiveTrades = winCount + lossCount;
+    const winRate = decisiveTrades > 0 ? (winCount / decisiveTrades) * 100 : 0;
+    const lossRate = decisiveTrades > 0 ? (lossCount / decisiveTrades) * 100 : 0;
     const beRate = totalTrades > 0 ? (beCount / totalTrades) * 100 : 0;
 
     const profitFactor = Math.abs(grossLossR) > 0 ? grossProfitR / Math.abs(grossLossR) : null;
