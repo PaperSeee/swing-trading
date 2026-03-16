@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { DEFAULT_PAIR, PAIR_GROUPS } from "@/lib/pair-groups";
 
 type LiveTrade = {
   id: string;
@@ -10,6 +11,7 @@ type LiveTrade = {
   status: "limit" | "running" | "closed";
   outcome: "tp" | "sl" | "be" | null;
   r_value: number | null;
+  chart_url: string | null;
   notes: string | null;
   is_validated: boolean;
   validation_notes: string | null;
@@ -36,11 +38,12 @@ export default function LivePage() {
   const [error, setError] = useState("");
 
   const [tradeDate, setTradeDate] = useState(initialDate);
-  const [pair, setPair] = useState("EURUSD");
+  const [pair, setPair] = useState(DEFAULT_PAIR);
   const [side, setSide] = useState<"long" | "short">("long");
   const [status, setStatus] = useState<"limit" | "running" | "closed">("limit");
   const [outcome, setOutcome] = useState<"tp" | "sl" | "be" | "">("");
   const [rValue, setRValue] = useState("");
+  const [chartUrl, setChartUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [isValidated, setIsValidated] = useState(false);
   const [validationNotes, setValidationNotes] = useState("");
@@ -113,11 +116,12 @@ export default function LivePage() {
   function resetForm() {
     setEditingTradeId(null);
     setTradeDate(initialDate);
-    setPair("EURUSD");
+    setPair(DEFAULT_PAIR);
     setSide("long");
     setStatus("limit");
     setOutcome("");
     setRValue("");
+    setChartUrl("");
     setNotes("");
     setIsValidated(false);
     setValidationNotes("");
@@ -196,6 +200,7 @@ export default function LivePage() {
           status,
           outcome: status === "closed" ? outcome : null,
           rValue: parsedR,
+          chartUrl,
           notes,
           isValidated,
           validationNotes,
@@ -226,6 +231,7 @@ export default function LivePage() {
     setStatus(trade.status);
     setOutcome(trade.outcome ?? "");
     setRValue(trade.r_value == null ? "" : String(trade.r_value));
+    setChartUrl(trade.chart_url ?? "");
     setNotes(trade.notes ?? "");
     setIsValidated(trade.is_validated);
     setValidationNotes(trade.validation_notes ?? "");
@@ -285,6 +291,7 @@ export default function LivePage() {
           status: trade.status,
           outcome: trade.outcome,
           rValue: trade.r_value,
+          chartUrl: trade.chart_url,
           notes: trade.notes,
           isValidated: true,
           validationNotes: trade.validation_notes ?? "Validated from live journal",
@@ -313,6 +320,35 @@ export default function LivePage() {
       }
       return b.created_at.localeCompare(a.created_at);
     });
+  }, [trades]);
+
+  const liveSummary = useMemo(() => {
+    const total = trades.length;
+    const limitCount = trades.filter((trade) => trade.status === "limit").length;
+    const runningCount = trades.filter((trade) => trade.status === "running").length;
+    const closed = trades.filter((trade) => trade.status === "closed");
+    const closedCount = closed.length;
+    const wins = closed.filter((trade) => trade.outcome === "tp").length;
+    const losses = closed.filter((trade) => trade.outcome === "sl").length;
+    const beCount = closed.filter((trade) => trade.outcome === "be").length;
+    const validatedCount = trades.filter((trade) => trade.is_validated).length;
+    const netR = closed.reduce((sum, trade) => sum + Number(trade.r_value ?? 0), 0);
+    const winRate = closedCount > 0 ? (wins / closedCount) * 100 : 0;
+    const validationRate = total > 0 ? (validatedCount / total) * 100 : 0;
+
+    return {
+      total,
+      limitCount,
+      runningCount,
+      closedCount,
+      wins,
+      losses,
+      beCount,
+      validatedCount,
+      netR,
+      winRate,
+      validationRate,
+    };
   }, [trades]);
 
   return (
@@ -374,6 +410,7 @@ export default function LivePage() {
           )}
 
           <form onSubmit={saveLiveTrade} className="mt-4 grid gap-3 rounded-xl border border-foreground/20 bg-background p-4">
+            <fieldset disabled={!canEdit} className="grid gap-3 disabled:cursor-not-allowed disabled:opacity-70">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <label className="grid gap-1 text-sm">
                 Date
@@ -387,13 +424,21 @@ export default function LivePage() {
 
               <label className="grid gap-1 text-sm">
                 Pair
-                <input
-                  type="text"
+                <select
                   value={pair}
-                  onChange={(event) => setPair(event.target.value.toUpperCase())}
-                  className="rounded-lg border border-foreground/20 bg-background px-3 py-2 uppercase"
-                  placeholder="EURUSD"
-                />
+                  onChange={(event) => setPair(event.target.value)}
+                  className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
+                >
+                  {PAIR_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </label>
 
               <label className="grid gap-1 text-sm">
@@ -457,6 +502,17 @@ export default function LivePage() {
               </label>
 
               <label className="grid gap-1 text-sm">
+                Chart URL
+                <input
+                  type="url"
+                  value={chartUrl}
+                  onChange={(event) => setChartUrl(event.target.value)}
+                  className="rounded-lg border border-foreground/20 bg-background px-3 py-2"
+                  placeholder="https://..."
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm">
                 Validation Notes
                 <input
                   type="text"
@@ -505,6 +561,7 @@ export default function LivePage() {
                 </button>
               )}
             </div>
+            </fieldset>
           </form>
         </section>
 
@@ -525,6 +582,11 @@ export default function LivePage() {
                 <p className="text-xs text-foreground/70">{trade.trade_date}</p>
                 <p className="mt-1 text-xs uppercase text-foreground/70">Outcome: {trade.outcome ? trade.outcome.toUpperCase() : "-"}</p>
                 <p className="text-xs uppercase text-foreground/70">R: {trade.r_value == null ? "-" : trade.r_value.toFixed(2)}</p>
+                {trade.chart_url && (
+                  <a href={trade.chart_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs underline">
+                    Open Chart
+                  </a>
+                )}
                 <p className="mt-2 text-foreground/80">{trade.notes || "-"}</p>
                 {trade.validation_notes && <p className="mt-1 text-xs text-foreground/70">Validation: {trade.validation_notes}</p>}
 
@@ -575,6 +637,7 @@ export default function LivePage() {
                   <th className="px-3 py-3 font-medium">Status</th>
                   <th className="px-3 py-3 font-medium">Outcome</th>
                   <th className="px-3 py-3 font-medium">R</th>
+                  <th className="px-3 py-3 font-medium">Chart</th>
                   <th className="px-3 py-3 font-medium">Validated</th>
                   <th className="px-3 py-3 font-medium">Notes</th>
                   <th className="px-3 py-3 font-medium">Actions</th>
@@ -593,6 +656,15 @@ export default function LivePage() {
                     </td>
                     <td className="px-3 py-3 uppercase">{trade.outcome ?? "-"}</td>
                     <td className="px-3 py-3">{trade.r_value == null ? "-" : trade.r_value.toFixed(2)}</td>
+                    <td className="px-3 py-3">
+                      {trade.chart_url ? (
+                        <a href={trade.chart_url} target="_blank" rel="noreferrer" className="underline">
+                          Open
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td className="px-3 py-3">
                       {trade.is_validated ? (
                         <span className="rounded-md border border-emerald-500/50 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold uppercase text-emerald-300">Yes</span>
@@ -638,13 +710,56 @@ export default function LivePage() {
                 ))}
                 {tradesByRecency.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-foreground/70">
+                    <td colSpan={10} className="px-3 py-6 text-center text-foreground/70">
                       No live trades yet.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
+          <h2 className="text-lg font-semibold">Live Account Summary</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-foreground/20 bg-background p-3">
+              <p className="text-xs uppercase tracking-wide text-foreground/60">Total Live Trades</p>
+              <p className="mt-1 text-xl font-semibold">{liveSummary.total}</p>
+            </div>
+            <div className="rounded-lg border border-foreground/20 bg-background p-3">
+              <p className="text-xs uppercase tracking-wide text-foreground/60">Active (Limit + Running)</p>
+              <p className="mt-1 text-xl font-semibold">{liveSummary.limitCount + liveSummary.runningCount}</p>
+            </div>
+            <div className="rounded-lg border border-foreground/20 bg-background p-3">
+              <p className="text-xs uppercase tracking-wide text-foreground/60">Closed Trades</p>
+              <p className="mt-1 text-xl font-semibold">{liveSummary.closedCount}</p>
+            </div>
+            <div className="rounded-lg border border-foreground/20 bg-background p-3">
+              <p className="text-xs uppercase tracking-wide text-foreground/60">Net R (Closed)</p>
+              <p className="mt-1 text-xl font-semibold">{`${liveSummary.netR >= 0 ? "+" : ""}${liveSummary.netR.toFixed(2)}R`}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-lg border border-foreground/20 bg-background p-3 text-sm">
+              <p className="font-semibold uppercase tracking-wide text-foreground/70">Status Breakdown</p>
+              <p className="mt-2">Limit: {liveSummary.limitCount}</p>
+              <p>Running: {liveSummary.runningCount}</p>
+              <p>Closed: {liveSummary.closedCount}</p>
+            </div>
+            <div className="rounded-lg border border-foreground/20 bg-background p-3 text-sm">
+              <p className="font-semibold uppercase tracking-wide text-foreground/70">Closed Outcomes</p>
+              <p className="mt-2">TP: {liveSummary.wins}</p>
+              <p>SL: {liveSummary.losses}</p>
+              <p>BE: {liveSummary.beCount}</p>
+              <p>Win Rate: {liveSummary.winRate.toFixed(1)}%</p>
+            </div>
+            <div className="rounded-lg border border-foreground/20 bg-background p-3 text-sm">
+              <p className="font-semibold uppercase tracking-wide text-foreground/70">Validation</p>
+              <p className="mt-2">Validated: {liveSummary.validatedCount}</p>
+              <p>Validation Rate: {liveSummary.validationRate.toFixed(1)}%</p>
+            </div>
           </div>
         </section>
       </div>

@@ -55,12 +55,16 @@ create table if not exists public.live_trades (
   status text not null check (status in ('limit', 'running', 'closed')),
   outcome text check (outcome in ('tp', 'sl', 'be')),
   r_value numeric(10, 2),
+  chart_url text,
   notes text,
   is_validated boolean not null default false,
   validation_notes text,
   validated_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.live_trades add column if not exists chart_url text;
+
 
 do $$
 begin

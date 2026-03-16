@@ -19,7 +19,7 @@ export async function GET() {
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("live_trades")
-      .select("id, trade_date, pair, side, status, outcome, r_value, notes, is_validated, validation_notes, validated_at, created_at")
+      .select("id, trade_date, pair, side, status, outcome, r_value, chart_url, notes, is_validated, validation_notes, validated_at, created_at")
       .order("trade_date", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       status?: LiveStatus;
       outcome?: LiveOutcome | null;
       rValue?: number | null;
+      chartUrl?: string;
       notes?: string;
       isValidated?: boolean;
       validationNotes?: string;
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     const status = payload.status;
     const outcome = payload.outcome ?? null;
     const rValue = payload.rValue == null ? null : Number(payload.rValue);
+    const chartUrl = payload.chartUrl?.trim() || null;
     const notes = payload.notes?.trim() || null;
     const isValidated = Boolean(payload.isValidated);
     const validationNotes = payload.validationNotes?.trim() || null;
@@ -97,12 +99,13 @@ export async function POST(request: Request) {
         status,
         outcome,
         r_value: rValue,
+        chart_url: chartUrl,
         notes,
         is_validated: isValidated,
         validation_notes: validationNotes,
         validated_at: isValidated ? new Date().toISOString() : null,
       })
-      .select("id, trade_date, pair, side, status, outcome, r_value, notes, is_validated, validation_notes, validated_at, created_at")
+      .select("id, trade_date, pair, side, status, outcome, r_value, chart_url, notes, is_validated, validation_notes, validated_at, created_at")
       .single();
 
     if (error) {
@@ -131,6 +134,7 @@ export async function PATCH(request: Request) {
       status?: LiveStatus;
       outcome?: LiveOutcome | null;
       rValue?: number | null;
+      chartUrl?: string;
       notes?: string;
       isValidated?: boolean;
       validationNotes?: string;
@@ -143,6 +147,7 @@ export async function PATCH(request: Request) {
     const status = payload.status;
     const outcome = payload.outcome ?? null;
     const rValue = payload.rValue == null ? null : Number(payload.rValue);
+    const chartUrl = payload.chartUrl?.trim() || null;
     const notes = payload.notes?.trim() || null;
     const isValidated = Boolean(payload.isValidated);
     const validationNotes = payload.validationNotes?.trim() || null;
@@ -193,13 +198,14 @@ export async function PATCH(request: Request) {
         status,
         outcome,
         r_value: rValue,
+        chart_url: chartUrl,
         notes,
         is_validated: isValidated,
         validation_notes: validationNotes,
         validated_at: shouldStampValidation ? new Date().toISOString() : existing?.is_validated ? undefined : null,
       })
       .eq("id", id)
-      .select("id, trade_date, pair, side, status, outcome, r_value, notes, is_validated, validation_notes, validated_at, created_at")
+      .select("id, trade_date, pair, side, status, outcome, r_value, chart_url, notes, is_validated, validation_notes, validated_at, created_at")
       .single();
 
     if (error) {
