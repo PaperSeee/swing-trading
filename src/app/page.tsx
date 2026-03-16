@@ -73,11 +73,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
-  const [sessionPair, setSessionPair] = useState(DEFAULT_PAIR);
+  const [sessionPair, setSessionPair] = useState<string>(DEFAULT_PAIR);
   const [sessionMonth, setSessionMonth] = useState(now.getMonth() + 1);
   const [sessionYear, setSessionYear] = useState(now.getFullYear());
 
-  const [sessionEditPair, setSessionEditPair] = useState(DEFAULT_PAIR);
+  const [sessionEditPair, setSessionEditPair] = useState<string>(DEFAULT_PAIR);
   const [sessionEditMonth, setSessionEditMonth] = useState(now.getMonth() + 1);
   const [sessionEditYear, setSessionEditYear] = useState(now.getFullYear());
 

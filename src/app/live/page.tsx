@@ -38,7 +38,7 @@ export default function LivePage() {
   const [error, setError] = useState("");
 
   const [tradeDate, setTradeDate] = useState(initialDate);
-  const [pair, setPair] = useState(DEFAULT_PAIR);
+  const [pair, setPair] = useState<string>(DEFAULT_PAIR);
   const [side, setSide] = useState<"long" | "short">("long");
   const [status, setStatus] = useState<"limit" | "running" | "closed">("limit");
   const [outcome, setOutcome] = useState<"tp" | "sl" | "be" | "">("");
