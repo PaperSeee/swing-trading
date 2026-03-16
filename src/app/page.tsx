@@ -678,7 +678,7 @@ export default function Home() {
           totalR: Number(totalR.toFixed(2)),
         };
       })
-      .sort((a, b) => b.key.localeCompare(a.key));
+      .sort((a, b) => a.key.localeCompare(b.key));
   }, [statsTrades]);
 
   const yearlyPnl = useMemo(() => {
