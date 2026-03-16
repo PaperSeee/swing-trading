@@ -652,6 +652,22 @@ export default function Home() {
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [trades]);
 
+  const yearlyPnl = useMemo(() => {
+    const byYear = new Map<string, number>();
+
+    trades.forEach((trade) => {
+      const year = trade.trade_date.slice(0, 4);
+      byYear.set(year, (byYear.get(year) ?? 0) + Number(trade.r_value));
+    });
+
+    return [...byYear.entries()]
+      .map(([year, totalR]) => ({
+        year,
+        totalR: Number(totalR.toFixed(2)),
+      }))
+      .sort((a, b) => b.year.localeCompare(a.year));
+  }, [trades]);
+
   const tradesByRecency = useMemo(() => {
     return [...trades].sort((a, b) => {
       const dateCompare = b.trade_date.localeCompare(a.trade_date);
@@ -1108,6 +1124,19 @@ export default function Home() {
                     </div>
                   ))}
                   {monthlyPnl.length === 0 && <p className="text-sm text-foreground/70">No monthly data yet.</p>}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-foreground/20 bg-background p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Yearly P&L Recap (Selected Session · by trade date)</h4>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  {yearlyPnl.map((year) => (
+                    <div key={year.year} className="rounded-md border border-foreground/20 bg-foreground/5 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-foreground/70">{year.year}</p>
+                      <p className="mt-1 text-lg font-semibold">{formatR(year.totalR)}</p>
+                    </div>
+                  ))}
+                  {yearlyPnl.length === 0 && <p className="text-sm text-foreground/70">No yearly data yet.</p>}
                 </div>
               </div>
             </div>
