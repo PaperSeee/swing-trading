@@ -46,3 +46,36 @@ end $$;
 
 alter table public.backtest_sessions disable row level security;
 alter table public.trades disable row level security;
+
+create table if not exists public.live_trades (
+  id uuid primary key default gen_random_uuid(),
+  trade_date date not null,
+  pair text not null,
+  side text not null check (side in ('long', 'short')),
+  status text not null check (status in ('limit', 'running', 'closed')),
+  outcome text check (outcome in ('tp', 'sl', 'be')),
+  r_value numeric(10, 2),
+  notes text,
+  is_validated boolean not null default false,
+  validation_notes text,
+  validated_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'live_trades_closed_outcome_required'
+  ) then
+    alter table public.live_trades
+    add constraint live_trades_closed_outcome_required
+    check (
+      (status = 'closed' and outcome is not null)
+      or (status <> 'closed' and outcome is null)
+    );
+  end if;
+end $$;
+
+alter table public.live_trades disable row level security;
