@@ -86,6 +86,7 @@ function formatPercent(value: number) {
 export default function Home() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  const [linkedSessionIds, setLinkedSessionIds] = useState<string[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -135,6 +136,13 @@ export default function Home() {
     () => sessions.find((session) => session.id === selectedSessionId),
     [sessions, selectedSessionId],
   );
+
+  const activeTradeSessionIds = useMemo(() => {
+    if (linkedSessionIds.length > 0) {
+      return sessions.filter((session) => linkedSessionIds.includes(session.id)).map((session) => session.id);
+    }
+    return selectedSessionId ? [selectedSessionId] : [];
+  }, [linkedSessionIds, sessions, selectedSessionId]);
 
   const activeEditKey = editKeyInput.trim() || editKey.trim();
   const canEdit = isEditAuthorized && activeEditKey.length > 0;
@@ -235,15 +243,15 @@ export default function Home() {
     }
   }
 
-  async function loadTrades(sessionId: string) {
-    if (!sessionId) {
+  async function loadTrades(sessionIds: string[]) {
+    if (sessionIds.length === 0) {
       setTrades([]);
       return;
     }
 
     setError("");
     try {
-      const response = await fetch(`/api/trades?sessionId=${sessionId}`, {
+      const response = await fetch(`/api/trades?sessionIds=${encodeURIComponent(sessionIds.join(","))}`, {
         cache: "no-store",
       });
       const result = await response.json();
@@ -262,8 +270,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    void loadTrades(selectedSessionId);
-  }, [selectedSessionId]);
+    void loadTrades(activeTradeSessionIds);
+  }, [activeTradeSessionIds]);
+
+  useEffect(() => {
+    setLinkedSessionIds((current) => current.filter((id) => sessions.some((session) => session.id === id)));
+  }, [sessions]);
 
   useEffect(() => {
     if (!selectedSession) {
@@ -447,7 +459,7 @@ export default function Home() {
       }
 
       resetTradeForm();
-      await loadTrades(selectedSessionId);
+      await loadTrades(activeTradeSessionIds);
       await loadSessions();
     } catch (createError) {
       const message = createError instanceof Error ? createError.message : "Unknown error";
@@ -501,7 +513,7 @@ export default function Home() {
         resetTradeForm();
       }
 
-      await loadTrades(selectedSessionId);
+      await loadTrades(activeTradeSessionIds);
       await loadSessions();
     } catch (deleteError) {
       const message = deleteError instanceof Error ? deleteError.message : "Unknown error";
@@ -678,6 +690,25 @@ export default function Home() {
     });
   }, [trades]);
 
+  function toggleLinkedSession(sessionId: string) {
+    setLinkedSessionIds((current) => {
+      if (current.includes(sessionId)) {
+        return current.filter((id) => id !== sessionId);
+      }
+      return [...current, sessionId];
+    });
+  }
+
+  function linkAllSessions() {
+    setLinkedSessionIds(sessions.map((session) => session.id));
+  }
+
+  function clearLinkedSessions() {
+    setLinkedSessionIds([]);
+  }
+
+  const recapScopeLabel = linkedSessionIds.length > 0 ? "Linked Sessions" : "Selected Session";
+
   return (
     <main className="min-h-screen bg-background px-3 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-6">
@@ -824,26 +855,63 @@ export default function Home() {
 
             <div className="mt-6 border-t border-foreground/15 pt-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Sessions</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={linkAllSessions}
+                  disabled={sessions.length === 0}
+                  className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Link all
+                </button>
+                <button
+                  type="button"
+                  onClick={clearLinkedSessions}
+                  disabled={linkedSessionIds.length === 0}
+                  className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Clear links
+                </button>
+                <span className="self-center text-xs text-foreground/70">
+                  {linkedSessionIds.length > 0 ? `${linkedSessionIds.length} linked` : "No linked sessions"}
+                </span>
+              </div>
               <div className="mt-3 grid gap-2">
                 {sessions.length === 0 && <p className="text-sm text-foreground/70">No sessions yet.</p>}
                 {sessions.map((session) => {
                   const active = selectedSessionId === session.id;
+                  const linked = linkedSessionIds.includes(session.id);
                   return (
-                    <button
+                    <div
                       key={session.id}
-                      type="button"
-                      onClick={() => setSelectedSessionId(session.id)}
                       className={`rounded-lg border px-3 py-2 text-left transition ${
                         active ? "border-foreground bg-foreground text-background" : "border-foreground/20 bg-background"
                       }`}
                     >
-                      <div className="text-sm font-medium">
-                        {session.pair} · {monthLabel(session.month)} {session.year}
+                      <div className="flex items-start justify-between gap-2">
+                        <button type="button" onClick={() => setSelectedSessionId(session.id)} className="min-w-0 flex-1 text-left">
+                          <div className="text-sm font-medium">
+                            {session.pair} · {monthLabel(session.month)} {session.year}
+                          </div>
+                          <div className={`text-xs ${active ? "text-background/80" : "text-foreground/70"}`}>
+                            {session.totalTrades} trades · {formatR(session.totalR)}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleLinkedSession(session.id)}
+                          className={`shrink-0 rounded-md border px-2 py-1 text-xs ${
+                            active
+                              ? "border-background/50 bg-background/15 text-background"
+                              : linked
+                                ? "border-foreground/40 bg-foreground/10"
+                                : "border-foreground/30"
+                          }`}
+                        >
+                          {linked ? "Linked" : "Link"}
+                        </button>
                       </div>
-                      <div className={`text-xs ${active ? "text-background/80" : "text-foreground/70"}`}>
-                        {session.totalTrades} trades · {formatR(session.totalR)}
-                      </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -859,6 +927,11 @@ export default function Home() {
                 </p>
               ) : (
                 <p className="mt-1 text-sm text-foreground/75">Create or select a session to begin.</p>
+              )}
+              {linkedSessionIds.length > 0 && (
+                <p className="mt-2 text-xs uppercase tracking-wide text-foreground/70">
+                  Aggregating metrics across {linkedSessionIds.length} linked sessions
+                </p>
               )}
 
               {selectedSession && canEdit && (
@@ -1115,7 +1188,7 @@ export default function Home() {
               </div>
 
               <div className="mt-4 rounded-lg border border-foreground/20 bg-background p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Monthly P&L Recap (Selected Session · by trade date)</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Monthly P&L Recap ({recapScopeLabel} · by trade date)</h4>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {monthlyPnl.map((month) => (
                     <div key={month.key} className="rounded-md border border-foreground/20 bg-foreground/5 px-3 py-2">
@@ -1128,7 +1201,7 @@ export default function Home() {
               </div>
 
               <div className="mt-4 rounded-lg border border-foreground/20 bg-background p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Yearly P&L Recap (Selected Session · by trade date)</h4>
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-foreground/70">Yearly P&L Recap ({recapScopeLabel} · by trade date)</h4>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   {yearlyPnl.map((year) => (
                     <div key={year.year} className="rounded-md border border-foreground/20 bg-foreground/5 px-3 py-2">

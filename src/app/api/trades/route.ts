@@ -7,18 +7,28 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("sessionId");
+    const sessionIdsParam = searchParams.get("sessionIds");
+    const sessionIds = (sessionIdsParam ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
 
-    if (!sessionId) {
-      return NextResponse.json({ error: "sessionId is required." }, { status: 400 });
+    if (!sessionId && sessionIds.length === 0) {
+      return NextResponse.json({ error: "sessionId or sessionIds is required." }, { status: 400 });
     }
 
     const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("trades")
-      .select("id, session_id, trade_date, side, outcome, r_value, notes, chart_url, created_at")
-      .eq("session_id", sessionId)
-      .order("trade_date", { ascending: true })
-      .order("created_at", { ascending: true });
+      .select("id, session_id, trade_date, side, outcome, r_value, notes, chart_url, created_at");
+
+    if (sessionIds.length > 0) {
+      query = query.in("session_id", sessionIds);
+    } else if (sessionId) {
+      query = query.eq("session_id", sessionId);
+    }
+
+    const { data, error } = await query.order("trade_date", { ascending: true }).order("created_at", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
