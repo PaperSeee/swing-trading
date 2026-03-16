@@ -408,8 +408,7 @@ export default function Home() {
     }
   }
 
-  async function handleSaveTrade(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function saveTrade() {
     setError("");
 
     if (!canEdit) {
@@ -454,6 +453,11 @@ export default function Home() {
       const message = createError instanceof Error ? createError.message : "Unknown error";
       setError(message);
     }
+  }
+
+  async function handleSaveTrade(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await saveTrade();
   }
 
   function startEditingTrade(trade: Trade) {
@@ -924,7 +928,7 @@ export default function Home() {
 
               {canEdit && (
                 <>
-                  <form onSubmit={handleSaveTrade} className="mt-4 grid gap-3 rounded-xl border border-foreground/20 bg-background p-4">
+                    <form onSubmit={handleSaveTrade} className="mt-4 grid gap-3 rounded-xl border border-foreground/20 bg-background p-4">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <label className="grid gap-1 text-sm">
                     Date
@@ -1114,28 +1118,110 @@ export default function Home() {
               <div className="mt-4 grid gap-3 md:hidden">
                 {tradesByRecency.map((trade) => (
                   <article key={trade.id} className="rounded-lg border border-foreground/20 bg-background p-3 text-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium">{trade.trade_date}</p>
-                      <p className="text-xs uppercase text-foreground/70">{trade.side}</p>
-                    </div>
-                    <p className="mt-1 text-xs uppercase text-foreground/70">
-                      {trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"} · {trade.r_value.toFixed(2)}R
-                    </p>
-                    <p className="mt-2 text-foreground/80">{trade.notes || "—"}</p>
+                    {editingTradeId === trade.id ? (
+                      <div className="grid gap-2">
+                        <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
+                          Date
+                          <input
+                            type="date"
+                            value={tradeDate}
+                            onChange={(event) => setTradeDate(event.target.value)}
+                            className="rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
+                          />
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
+                            Side
+                            <select
+                              value={tradeSide}
+                              onChange={(event) => setTradeSide(event.target.value as "long" | "short")}
+                              className="rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
+                            >
+                              <option value="long">Long</option>
+                              <option value="short">Short</option>
+                            </select>
+                          </label>
+                          <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
+                            Result
+                            <select
+                              value={tradeOutcome}
+                              onChange={(event) => {
+                                const outcome = event.target.value as "win" | "lose" | "be";
+                                setTradeOutcome(outcome);
+                              }}
+                              className="rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
+                            >
+                              <option value="win">TP</option>
+                              <option value="lose">SL</option>
+                              <option value="be">BE</option>
+                            </select>
+                          </label>
+                        </div>
+                        <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
+                          R
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={tradeRValue}
+                            onChange={(event) => setTradeRValue(event.target.value)}
+                            className="rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs uppercase tracking-wide text-foreground/70">
+                          Notes
+                          <textarea
+                            value={tradeNotes}
+                            onChange={(event) => setTradeNotes(event.target.value)}
+                            className="min-h-16 rounded-md border border-foreground/20 bg-background px-2 py-1 text-sm"
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-medium">{trade.trade_date}</p>
+                          <p className="text-xs uppercase text-foreground/70">{trade.side}</p>
+                        </div>
+                        <p className="mt-1 text-xs uppercase text-foreground/70">
+                          {trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"} · {trade.r_value.toFixed(2)}R
+                        </p>
+                        <p className="mt-2 text-foreground/80">{trade.notes || "—"}</p>
+                      </>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       {trade.chart_url && (
                         <a href={trade.chart_url} target="_blank" rel="noreferrer" className="rounded-md border border-foreground/30 px-2 py-1 text-xs">
                           Open Chart
                         </a>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => startEditingTrade(trade)}
-                        disabled={!canEdit}
-                        className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Edit
-                      </button>
+                      {editingTradeId === trade.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void saveTrade()}
+                            disabled={!canEdit}
+                            className="rounded-md bg-foreground px-2 py-1 text-xs text-background disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Update
+                          </button>
+                          <button
+                            type="button"
+                            onClick={resetTradeForm}
+                            className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEditingTrade(trade)}
+                          disabled={!canEdit}
+                          className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Edit
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => void handleDeleteTrade(trade.id)}
@@ -1170,11 +1256,74 @@ export default function Home() {
                   <tbody>
                     {tradesByRecency.map((trade) => (
                       <tr key={trade.id} className="border-b border-foreground/10 align-top">
-                        <td className="px-3 py-3">{trade.trade_date}</td>
-                        <td className="px-3 py-3 uppercase">{trade.side}</td>
-                        <td className="px-3 py-3 uppercase">{trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"}</td>
-                        <td className="px-3 py-3">{trade.r_value.toFixed(2)}R</td>
-                        <td className="px-3 py-3 text-foreground/80">{trade.notes || "—"}</td>
+                        <td className="px-3 py-3">
+                          {editingTradeId === trade.id ? (
+                            <input
+                              type="date"
+                              value={tradeDate}
+                              onChange={(event) => setTradeDate(event.target.value)}
+                              className="w-full rounded-md border border-foreground/20 bg-background px-2 py-1"
+                            />
+                          ) : (
+                            trade.trade_date
+                          )}
+                        </td>
+                        <td className="px-3 py-3 uppercase">
+                          {editingTradeId === trade.id ? (
+                            <select
+                              value={tradeSide}
+                              onChange={(event) => setTradeSide(event.target.value as "long" | "short")}
+                              className="w-full rounded-md border border-foreground/20 bg-background px-2 py-1"
+                            >
+                              <option value="long">Long</option>
+                              <option value="short">Short</option>
+                            </select>
+                          ) : (
+                            trade.side
+                          )}
+                        </td>
+                        <td className="px-3 py-3 uppercase">
+                          {editingTradeId === trade.id ? (
+                            <select
+                              value={tradeOutcome}
+                              onChange={(event) => {
+                                const outcome = event.target.value as "win" | "lose" | "be";
+                                setTradeOutcome(outcome);
+                              }}
+                              className="w-full rounded-md border border-foreground/20 bg-background px-2 py-1"
+                            >
+                              <option value="win">TP</option>
+                              <option value="lose">SL</option>
+                              <option value="be">BE</option>
+                            </select>
+                          ) : (
+                            trade.outcome === "win" ? "TP" : trade.outcome === "lose" ? "SL" : "BE"
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {editingTradeId === trade.id ? (
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={tradeRValue}
+                              onChange={(event) => setTradeRValue(event.target.value)}
+                              className="w-24 rounded-md border border-foreground/20 bg-background px-2 py-1"
+                            />
+                          ) : (
+                            `${trade.r_value.toFixed(2)}R`
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-foreground/80">
+                          {editingTradeId === trade.id ? (
+                            <textarea
+                              value={tradeNotes}
+                              onChange={(event) => setTradeNotes(event.target.value)}
+                              className="w-full min-w-40 rounded-md border border-foreground/20 bg-background px-2 py-1"
+                            />
+                          ) : (
+                            trade.notes || "—"
+                          )}
+                        </td>
                         <td className="px-3 py-3">
                           {trade.chart_url ? (
                             <a href={trade.chart_url} target="_blank" rel="noreferrer" className="underline">
@@ -1186,14 +1335,34 @@ export default function Home() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditingTrade(trade)}
-                              disabled={!canEdit}
-                              className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Edit
-                            </button>
+                            {editingTradeId === trade.id ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => void saveTrade()}
+                                  disabled={!canEdit}
+                                  className="rounded-md bg-foreground px-2 py-1 text-xs text-background disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Update
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={resetTradeForm}
+                                  className="rounded-md border border-foreground/30 px-2 py-1 text-xs"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => startEditingTrade(trade)}
+                                disabled={!canEdit}
+                                className="rounded-md border border-foreground/30 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Edit
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => void handleDeleteTrade(trade.id)}
